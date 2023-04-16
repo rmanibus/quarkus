@@ -41,7 +41,7 @@ public interface CaffeineCache extends Cache {
      * @param valueFuture value to be associated with the specified key
      * @throws NullPointerException if the specified key or value is null
      */
-    <V> void put(Object key, CompletableFuture<V> valueFuture);
+    <V> void put(Object key, CompletableFuture<CacheValue<V>> valueFuture);
 
     /**
      * Changes the duration, initially set from the configuration, after which each entry should be automatically removed from

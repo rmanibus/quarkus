@@ -2,19 +2,17 @@ package io.quarkus.cache.test.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import io.quarkus.cache.*;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.quarkus.cache.Cache;
-import io.quarkus.cache.CacheManager;
-import io.quarkus.cache.CacheResult;
-import io.quarkus.cache.CaffeineCache;
 import io.quarkus.test.QuarkusUnitTest;
 import io.smallrye.mutiny.Uni;
 
@@ -62,12 +60,12 @@ public class SpecializedCacheTest {
         }
 
         @Override
-        public <K, V> Uni<V> get(K key, Function<K, V> valueLoader) {
+        public <K, V> Uni<V> get(K key, Function<K, CacheValue<V>> valueLoader) {
             throw new UnsupportedOperationException("This method is not tested here");
         }
 
         @Override
-        public <K, V> Uni<V> getAsync(K key, Function<K, Uni<V>> valueLoader) {
+        public <K, V> Uni<V> getAsync(K key, Function<K, Uni<CacheValue<V>>> valueLoader) {
             throw new UnsupportedOperationException("This method is not tested here");
         }
 

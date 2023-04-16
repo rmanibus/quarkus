@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -16,19 +17,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import io.quarkus.cache.*;
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.quarkus.cache.Cache;
-import io.quarkus.cache.CacheInvalidate;
-import io.quarkus.cache.CacheInvalidateAll;
-import io.quarkus.cache.CacheManager;
-import io.quarkus.cache.CacheName;
-import io.quarkus.cache.CacheResult;
-import io.quarkus.cache.CaffeineCache;
 import io.quarkus.cache.runtime.caffeine.CaffeineCacheImpl;
 import io.quarkus.test.QuarkusUnitTest;
 import io.smallrye.mutiny.Uni;
@@ -83,7 +78,7 @@ public class ProgrammaticApiTest {
         // Action: value retrieval from the cache with the same key as STEP 1.
         // Expected effect: value loader function not invoked.
         // Verified by: same object reference between STEPS 1 and 2 results.
-        String value2 = cache.get(KEY_1, k -> new String()).await().indefinitely();
+        String value2 = cache.get(KEY_1, k -> CacheValue.of(new String())).await().indefinitely();
         assertSame(value1, value2);
         assertKeySetContains(KEY_1);
         assertGetIfPresent(KEY_1, value2);
@@ -93,7 +88,7 @@ public class ProgrammaticApiTest {
         // Action: value retrieval from the cache with a new key.
         // Expected effect: value loader function invoked and result cached.
         // Verified by: STEP 4.
-        String value3 = cache.get(KEY_2, k -> new String()).await().indefinitely();
+        String value3 = cache.get(KEY_2, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value2, value3);
         assertKeySetContains(KEY_1, KEY_2);
 
@@ -120,7 +115,7 @@ public class ProgrammaticApiTest {
         // Action: value retrieval from the cache with the same key as STEP 2.
         // Expected effect: value loader function invoked because of STEP 5 and result cached.
         // Verified by: different objects references between STEPS 2 and 6 results.
-        String value6 = cache.get(KEY_1, k -> new String()).await().indefinitely();
+        String value6 = cache.get(KEY_1, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value2, value6);
         assertKeySetContains(KEY_1, KEY_2);
         assertGetIfPresent(KEY_1, value6);
@@ -130,7 +125,7 @@ public class ProgrammaticApiTest {
         // Action: value retrieval from the cache with the same key as STEP 4.
         // Expected effect: value loader function not invoked.
         // Verified by: same object reference between STEPS 4 and 7 results.
-        String value7 = cache.get(KEY_2, k -> new String()).await().indefinitely();
+        String value7 = cache.get(KEY_2, k -> CacheValue.of(new String())).await().indefinitely();
         assertSame(value4, value7);
         assertKeySetContains(KEY_1, KEY_2);
         assertGetIfPresent(KEY_1, value6);
@@ -149,7 +144,7 @@ public class ProgrammaticApiTest {
         // Action: same call as STEP 6.
         // Expected effect: value loader function invoked because of STEP 8 and result cached.
         // Verified by: different objects references between STEPS 6 and 9 results.
-        String value9 = cache.get(KEY_1, k -> new String()).await().indefinitely();
+        String value9 = cache.get(KEY_1, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value6, value9);
         assertKeySetContains(KEY_1);
         assertGetIfPresent(KEY_1, value9);
@@ -159,7 +154,7 @@ public class ProgrammaticApiTest {
         // Action: same call as STEP 7.
         // Expected effect: value loader function invoked because of STEP 8 and result cached.
         // Verified by: different objects references between STEPS 7 and 10 results.
-        String value10 = cache.get(KEY_2, k -> new String()).await().indefinitely();
+        String value10 = cache.get(KEY_2, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value7, value10);
         assertKeySetContains(KEY_1, KEY_2);
         assertGetIfPresent(KEY_1, value9);
@@ -173,7 +168,7 @@ public class ProgrammaticApiTest {
 
         try {
             // when null is cached
-            cache.get(key, (k) -> null).await().indefinitely();
+            cache.get(key, (k) -> CacheValue.of(null)).await().indefinitely();
 
             // assert
             assertKeySetContains(key);
@@ -207,8 +202,23 @@ public class ProgrammaticApiTest {
     public void testPutShouldPopulateCache() {
         CaffeineCache caffeineCache = cache.as(CaffeineCache.class);
         try {
-            caffeineCache.put("foo", CompletableFuture.completedFuture("bar"));
-            assertEquals("bar", caffeineCache.get("foo", Function.identity()).await().indefinitely());
+            caffeineCache.put("foo", CompletableFuture.completedFuture(CacheValue.of("bar")));
+            assertEquals("bar", caffeineCache.get("foo", CacheValue::of).await().indefinitely());
+        } finally {
+            // invalidate to remove side effects in other tests
+            cache.invalidate("foo").await().indefinitely();
+        }
+    }
+
+    @Test
+    public void testPutWithCustomExpiration() {
+        CaffeineCache caffeineCache = cache.as(CaffeineCache.class);
+        try {
+            caffeineCache.put("foo", CompletableFuture.completedFuture( CacheValue.builder()
+                            .data("bar")
+                            .expiresIn(Duration.ZERO)
+                    .build()));
+            assertNull(caffeineCache.getIfPresent("foo"));
         } finally {
             // invalidate to remove side effects in other tests
             cache.invalidate("foo").await().indefinitely();
@@ -218,7 +228,7 @@ public class ProgrammaticApiTest {
     @Test
     public void testInvalidatePredicate() throws Exception {
         String key = "bravo";
-        String val = cache.get(key, k -> "charlie").await().indefinitely();
+        String val = cache.get(key, k -> CacheValue.of("charlie")).await().indefinitely();
         assertEquals("charlie", val);
         assertKeySetContains(key);
         assertGetIfPresent(key, val);
@@ -235,11 +245,11 @@ public class ProgrammaticApiTest {
         String key = "alpha";
         String expectedValue = "foo";
         AtomicInteger loaded = new AtomicInteger();
-        Function<String, Uni<String>> loader = new Function<String, Uni<String>>() {
+        Function<String, Uni<CacheValue<String>>> loader = new Function<String, Uni<CacheValue<String>>>() {
 
             @Override
-            public Uni<String> apply(String t) {
-                return Uni.createFrom().item(expectedValue + loaded.incrementAndGet());
+            public Uni<CacheValue<String>> apply(String t) {
+                return Uni.createFrom().item(CacheValue.of(expectedValue + loaded.incrementAndGet()));
             }
         };
         Uni<String> resultUni = cache.getAsync(key, loader);

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import io.quarkus.cache.CacheValue;
 import jakarta.annotation.Priority;
 import jakarta.interceptor.AroundInvoke;
 import jakarta.interceptor.Interceptor;
@@ -53,12 +54,12 @@ public class CacheResultInterceptor extends CacheInterceptor {
         try {
             ReturnType returnType = determineReturnType(invocationContext.getMethod().getReturnType());
             if (returnType != ReturnType.NonAsync) {
-                Uni<Object> cacheValue = cache.getAsync(key, new Function<Object, Uni<Object>>() {
+                Uni<Object> cacheValue = cache.getAsync(key, new Function<Object, Uni<CacheValue<Object>>>() {
                     @SuppressWarnings("unchecked")
                     @Override
-                    public Uni<Object> apply(Object key) {
+                    public Uni<CacheValue<Object>> apply(Object key) {
                         try {
-                            return (Uni<Object>) asyncInvocationResultToUni(invocationContext.proceed(), returnType);
+                            return (Uni<CacheValue<Object>>) asyncInvocationResultToUni(invocationContext.proceed(), returnType);
                         } catch (CacheException e) {
                             throw e;
                         } catch (Exception e) {
@@ -85,13 +86,13 @@ public class CacheResultInterceptor extends CacheInterceptor {
                         });
                 return createAsyncResult(cacheValue, returnType);
             } else {
-                Uni<Object> cacheValue = cache.get(key, new Function<Object, Object>() {
+                Uni<Object> cacheValue = cache.get(key, new Function<Object, CacheValue<Object>>() {
                     @Override
-                    public Object apply(Object k) {
+                    public CacheValue<Object> apply(Object k) {
                         try {
                             LOGGER.debugf("Adding entry with key [%s] into cache [%s]",
                                     key, binding.cacheName());
-                            return invocationContext.proceed();
+                            return CacheValue.of(invocationContext.proceed());
                         } catch (CacheException e) {
                             throw e;
                         } catch (Throwable e) {

@@ -4,6 +4,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import io.quarkus.cache.CacheValue;
 import io.quarkus.cache.runtime.AbstractCache;
 import io.smallrye.mutiny.Uni;
 
@@ -21,18 +22,18 @@ public class NoOpCache extends AbstractCache {
     }
 
     @Override
-    public <K, V> Uni<V> get(K key, Function<K, V> valueLoader) {
+    public <K, V> Uni<V> get(K key, Function<K, CacheValue<V>> valueLoader) {
         return Uni.createFrom().item(new Supplier<V>() {
             @Override
             public V get() {
-                return valueLoader.apply(key);
+                return valueLoader.apply(key).getData();
             }
         });
     }
 
     @Override
-    public <K, V> Uni<V> getAsync(K key, Function<K, Uni<V>> valueLoader) {
-        return valueLoader.apply(key);
+    public <K, V> Uni<V> getAsync(K key, Function<K, Uni<CacheValue<V>>> valueLoader) {
+        return valueLoader.apply(key).map(CacheValue::getData);
     }
 
     @Override

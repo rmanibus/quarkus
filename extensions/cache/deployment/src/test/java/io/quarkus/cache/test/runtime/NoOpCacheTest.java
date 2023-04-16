@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 
+import io.quarkus.cache.CacheValue;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -67,14 +68,14 @@ public class NoOpCacheTest {
         // Action: value retrieval from the cache with the same key as STEP 2.
         // Expected effect: value loader function invoked and result not cached.
         // Verified by: different objects references between STEPS 2 and 3 results.
-        String value3 = cache.get(KEY, k -> new String()).await().indefinitely();
+        String value3 = cache.get(KEY, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value2, value3);
 
         // STEP 4
         // Action: value retrieval from the cache with the same key as STEP 3.
         // Expected effect: value loader function invoked and result not cached.
         // Verified by: different objects references between STEPS 3 and 4 results.
-        String value4 = cache.get(KEY, k -> new String()).await().indefinitely();
+        String value4 = cache.get(KEY, k -> CacheValue.of(new String())).await().indefinitely();
         assertNotSame(value3, value4);
 
         // The following methods have no effect at all, but let's check if they're running fine anyway.

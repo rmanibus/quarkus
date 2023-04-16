@@ -40,7 +40,7 @@ public interface Cache {
      * @throws NullPointerException if the key is {@code null}
      * @throws CacheException if an exception is thrown during a cache value computation
      */
-    <K, V> Uni<V> get(K key, Function<K, V> valueLoader);
+    <K, V> Uni<V> get(K key, Function<K, CacheValue<V>> valueLoader);
 
     /**
      * Returns a lazy asynchronous action that will emit the cache value identified by {@code key}, obtaining that value from
@@ -53,7 +53,8 @@ public interface Cache {
      * @return a lazy asynchronous action that will emit a cache value
      * @throws NullPointerException if the key is {@code null}
      */
-    <K, V> Uni<V> getAsync(K key, Function<K, Uni<V>> valueLoader);
+    <K, V> Uni<V> getAsync(K key, Function<K, Uni<CacheValue<V>>> valueLoader);
+
 
     /**
      * Removes the cache entry identified by {@code key} from the cache. If the key does not identify any cache entry, nothing
