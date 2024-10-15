@@ -18,15 +18,16 @@ import io.agroal.api.AgroalDataSource;
 import io.quarkus.flyway.FlywayConfigurationCustomizer;
 import io.quarkus.runtime.configuration.ConfigurationException;
 
-class FlywayCreator {
+public class FlywayCreator {
 
     private static final String[] EMPTY_ARRAY = new String[0];
     public static final Duration DEFAULT_CONNECT_RETRIES_INTERVAL = Duration.ofSeconds(120L);
-
+    public static final String TENANT_ID_DEFAULT = "io.quarkus.flyway.runtime.FlywayCreator.NO_TENANT";
     private final FlywayDataSourceRuntimeConfig flywayRuntimeConfig;
     private final FlywayDataSourceBuildTimeConfig flywayBuildTimeConfig;
     private final List<FlywayConfigurationCustomizer> customizers;
     private Collection<Callback> callbacks = Collections.emptyList();
+    private String tenantId = TENANT_ID_DEFAULT;
 
     // only used for tests
     public FlywayCreator(FlywayDataSourceRuntimeConfig flywayRuntimeConfig,
@@ -46,6 +47,11 @@ class FlywayCreator {
 
     public FlywayCreator withCallbacks(Collection<Callback> callbacks) {
         this.callbacks = callbacks;
+        return this;
+    }
+
+    public FlywayCreator withTenantId(String tenantId) {
+        this.tenantId = tenantId;
         return this;
     }
 
@@ -80,7 +86,10 @@ class FlywayCreator {
         }
         configure.connectRetriesInterval(
                 (int) flywayRuntimeConfig.connectRetriesInterval.orElse(DEFAULT_CONNECT_RETRIES_INTERVAL).toSeconds());
-        if (flywayRuntimeConfig.defaultSchema.isPresent()) {
+
+        if (tenantId != null && !tenantId.equals(TENANT_ID_DEFAULT)) {
+            configure.defaultSchema(tenantId);
+        } else if (flywayRuntimeConfig.defaultSchema.isPresent()) {
             configure.defaultSchema(flywayRuntimeConfig.defaultSchema.get());
         }
         if (flywayRuntimeConfig.schemas.isPresent()) {
