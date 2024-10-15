@@ -27,7 +27,6 @@ public class FlywayCreator {
     private final FlywayDataSourceBuildTimeConfig flywayBuildTimeConfig;
     private final List<FlywayConfigurationCustomizer> customizers;
     private Collection<Callback> callbacks = Collections.emptyList();
-    private String tenantId = TENANT_ID_DEFAULT;
 
     // only used for tests
     public FlywayCreator(FlywayDataSourceRuntimeConfig flywayRuntimeConfig,
@@ -50,12 +49,11 @@ public class FlywayCreator {
         return this;
     }
 
-    public FlywayCreator withTenantId(String tenantId) {
-        this.tenantId = tenantId;
-        return this;
+    public Flyway createFlyway(DataSource dataSource) {
+        return createFlyway(dataSource, TENANT_ID_DEFAULT);
     }
 
-    public Flyway createFlyway(DataSource dataSource) {
+    public Flyway createFlyway(DataSource dataSource, String tenantId) {
         FluentConfiguration configure = Flyway.configure();
 
         if (flywayRuntimeConfig.jdbcUrl.isPresent()) {

@@ -11,7 +11,7 @@ import io.quarkus.runtime.annotations.ConfigItem;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 
-@ConfigRoot(name = "flyway", phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
+@ConfigRoot(name = "flyway.multitenant", phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
 public final class FlywayMultiTenantBuildTimeConfig {
 
     /**

@@ -2,74 +2,66 @@ package io.quarkus.flyway.multitenant.runtime;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import javax.sql.DataSource;
-
-import io.quarkus.flyway.runtime.FlywayContainer;
-import io.quarkus.flyway.runtime.FlywayCreator;
-import io.quarkus.flyway.runtime.FlywayDataSourceBuildTimeConfig;
-import io.quarkus.flyway.runtime.FlywayDataSourceRuntimeConfig;
-import io.quarkus.hibernate.orm.runtime.PersistenceUnitUtil;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.callback.Callback;
+import jakarta.enterprise.inject.spi.InjectionPoint;
 
 import io.quarkus.arc.All;
 import io.quarkus.arc.InstanceHandle;
-
+import io.quarkus.arc.SyntheticCreationalContext;
 import io.quarkus.flyway.FlywayConfigurationCustomizer;
-import io.quarkus.flyway.multitenant.FlywayPersistenceUnit;
+import io.quarkus.flyway.runtime.ContainerProducer;
+import io.quarkus.flyway.runtime.FlywayDataSourceBuildTimeConfig;
+import io.quarkus.flyway.runtime.FlywayDataSourceRuntimeConfig;
+import io.quarkus.hibernate.orm.runtime.PersistenceUnitUtil;
 
-/**
- * This class is sort of a producer for {@link Flyway}.
- *
- * It isn't a CDI producer in the literal sense, but it is marked as a bean
- * and it's {@code createFlyway} method is called at runtime in order to produce
- * the actual {@code Flyway} objects.
- *
- * CDI scopes and qualifiers are set up at build-time, which is why this class is devoid of
- * any CDI annotations
- *
- */
-public class FlywayMultiTenantContainerProducer {
+public class FlywayMultiTenantContainerProducer implements ContainerProducer {
 
     private final FlywayMultiTenantRuntimeConfig flywayMultiTenantRuntimeConfig;
-    private final FlywayMultiTenantBuildTimeConfig flywayBuildConfig;
+    private final FlywayMultiTenantBuildTimeConfig flywayMultiTenantBuildConfig;
 
     private final List<InstanceHandle<FlywayConfigurationCustomizer>> configCustomizerInstances;
 
-    public FlywayMultiTenantContainerProducer(FlywayMultiTenantRuntimeConfig flywayMultiTenantRuntimeConfig,
-            FlywayMultiTenantBuildTimeConfig flywayBuildConfig,
+    FlywayMultiTenantContainerProducer(FlywayMultiTenantRuntimeConfig flywayMultiTenantRuntimeConfig,
+            FlywayMultiTenantBuildTimeConfig flywayMultiTenantBuildConfig,
             @All List<InstanceHandle<FlywayConfigurationCustomizer>> configCustomizerInstances) {
+
         this.flywayMultiTenantRuntimeConfig = flywayMultiTenantRuntimeConfig;
-        this.flywayBuildConfig = flywayBuildConfig;
+        this.flywayMultiTenantBuildConfig = flywayMultiTenantBuildConfig;
         this.configCustomizerInstances = configCustomizerInstances;
     }
 
-    public FlywayContainer createFlyway(DataSource dataSource, String persistenceUnitName, String tenantId,
-            boolean hasMigrations,
-            boolean createPossible) {
-        FlywayDataSourceRuntimeConfig matchingRuntimeConfig = flywayMultiTenantRuntimeConfig
-                .getConfigForPersistenceUnitName(persistenceUnitName);
-        FlywayDataSourceBuildTimeConfig matchingBuildTimeConfig = flywayBuildConfig
-                .getConfigForPersistenceUnitName(persistenceUnitName);
-        final Collection<Callback> callbacks = QuarkusPathLocationScanner.callbacksForPersistenceUnit(persistenceUnitName);
-        final Flyway flyway = new FlywayCreator(matchingRuntimeConfig, matchingBuildTimeConfig, matchingConfigCustomizers(
-                configCustomizerInstances, persistenceUnitName)).withCallbacks(callbacks)
-                .withTenantId(tenantId)
-                .createFlyway(dataSource);
-        return new FlywayContainer(flyway, matchingRuntimeConfig.baselineAtStart, matchingRuntimeConfig.cleanAtStart,
-                matchingRuntimeConfig.migrateAtStart,
-                matchingRuntimeConfig.repairAtStart, matchingRuntimeConfig.validateAtStart,
-                persistenceUnitName, hasMigrations,
-                createPossible);
+    @Override
+    public String getTenantId(SyntheticCreationalContext<?> context) {
+        InjectionPoint injectionPoint = context.getInjectedReference(InjectionPoint.class);
+        FlywayPersistenceUnit annotation = (FlywayPersistenceUnit) injectionPoint.getQualifiers().stream()
+                .filter(x -> x instanceof FlywayPersistenceUnit)
+                .findFirst()
+                .orElseThrow(
+                        () -> new IllegalStateException(
+                                "flyway must be qualified with FlywayPersistenceUnit"));
+        return annotation.tenantId();
     }
 
-    private List<FlywayConfigurationCustomizer> matchingConfigCustomizers(
-            List<InstanceHandle<FlywayConfigurationCustomizer>> configCustomizerInstances, String persistenceUnitName) {
+    @Override
+    public Annotation getFlywayContainerQualifier(String name) {
+        return FlywayMultiTenantContainerUtil.getFlywayContainerQualifier(name);
+    }
+
+    @Override
+    public FlywayDataSourceRuntimeConfig getRuntimeConfig(String name) {
+        return flywayMultiTenantRuntimeConfig.getConfigForPersistenceUnitName(name);
+    }
+
+    @Override
+    public FlywayDataSourceBuildTimeConfig getBuildTimeConfig(String name) {
+        return flywayMultiTenantBuildConfig.getConfigForPersistenceUnitName(name);
+    }
+
+    @Override
+    public List<FlywayConfigurationCustomizer> matchingConfigCustomizers(String persistenceUnitName) {
         if ((configCustomizerInstances == null) || configCustomizerInstances.isEmpty()) {
             return Collections.emptyList();
         }

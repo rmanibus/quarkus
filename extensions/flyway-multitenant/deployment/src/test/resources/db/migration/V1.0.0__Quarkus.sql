@@ -1,4 +1,4 @@
-CREATE TABLE quarked_flyway
+CREATE TABLE fruit
 (
     id   INT,
     name VARCHAR(20)

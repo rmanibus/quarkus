@@ -1,10 +1,8 @@
 package io.quarkus.flyway.multitenant.runtime;
 
-import io.quarkus.flyway.multitenant.FlywayPersistenceUnit;
+import static io.quarkus.flyway.runtime.FlywayCreator.TENANT_ID_DEFAULT;
 
 import java.lang.annotation.Annotation;
-
-import static io.quarkus.flyway.runtime.FlywayCreator.TENANT_ID_DEFAULT;
 
 public final class FlywayMultiTenantContainerUtil {
     private FlywayMultiTenantContainerUtil() {
