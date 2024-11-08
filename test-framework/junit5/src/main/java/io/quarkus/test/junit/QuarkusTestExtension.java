@@ -407,12 +407,14 @@ public class QuarkusTestExtension extends AbstractJvmQuarkusTestExtension
             return;
         }
     }
-
     public static String getEndpointPath(ExtensionContext context, List<Function<Class<?>, String>> testHttpEndpointProviders) {
+        return getEndpointPath(context.getRequiredTestMethod(), context.getRequiredTestClass(), testHttpEndpointProviders);
+    }
+    public static String getEndpointPath(Method testMethod, Class<?> testClass, List<Function<Class<?>, String>> testHttpEndpointProviders) {
         String endpointPath = null;
-        TestHTTPEndpoint testHTTPEndpoint = context.getRequiredTestMethod().getAnnotation(TestHTTPEndpoint.class);
+        TestHTTPEndpoint testHTTPEndpoint = testMethod.getAnnotation(TestHTTPEndpoint.class);
         if (testHTTPEndpoint == null) {
-            Class<?> clazz = context.getRequiredTestClass();
+            Class<?> clazz = testClass;
             while (true) {
                 // go up the hierarchy because most Native tests extend from a regular Quarkus test
                 testHTTPEndpoint = clazz.getAnnotation(TestHTTPEndpoint.class);
@@ -434,7 +436,7 @@ public class QuarkusTestExtension extends AbstractJvmQuarkusTestExtension
             }
             if (endpointPath == null) {
                 throw new RuntimeException("Cannot determine HTTP path for endpoint " + testHTTPEndpoint.value()
-                        + " for test method " + context.getRequiredTestMethod());
+                        + " for test method " + testMethod);
             }
         }
         if (endpointPath != null) {

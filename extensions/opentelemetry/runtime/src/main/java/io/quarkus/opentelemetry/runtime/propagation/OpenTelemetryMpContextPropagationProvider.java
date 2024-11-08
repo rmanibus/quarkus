@@ -14,7 +14,7 @@ public class OpenTelemetryMpContextPropagationProvider implements ThreadContextP
     @Override
     public ThreadContextSnapshot currentContext(Map<String, String> props) {
 
-        io.opentelemetry.context.Context context = QuarkusContextStorage.INSTANCE.current();
+        io.opentelemetry.context.≈ context = QuarkusContextStorage.INSTANCE.current();
 
         // Use anonymous classes instead of lambdas for the native image
         return new ThreadContextSnapshot() {

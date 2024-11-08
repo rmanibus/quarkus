@@ -168,10 +168,13 @@ public final class IntegrationTestUtil {
             }
         }
     }
-
     static ArtifactLauncher.InitContext.DevServicesLaunchResult handleDevServices(ExtensionContext context,
+                                                                                  boolean isDockerAppLaunch) throws Exception{
+        return handleDevServices(context.getRequiredTestClass(), isDockerAppLaunch);
+    }
+
+    static ArtifactLauncher.InitContext.DevServicesLaunchResult handleDevServices(Class<?> requiredTestClass,
             boolean isDockerAppLaunch) throws Exception {
-        Class<?> requiredTestClass = context.getRequiredTestClass();
         Path testClassLocation = getTestClassesLocation(requiredTestClass);
         final Path appClassLocation = getAppClassLocationForTestLocation(testClassLocation.toString());
 
@@ -386,16 +389,19 @@ public final class IntegrationTestUtil {
         }
     }
 
-    public static Properties readQuarkusArtifactProperties(ExtensionContext context) {
-        Path buildOutputDirectory = determineBuildOutputDirectory(context);
+    public static Properties readQuarkusArtifactProperties(ExtensionContext context){
+        return readQuarkusArtifactProperties(context.getRequiredTestClass());
+    }
+    public static Properties readQuarkusArtifactProperties(Class<?> requiredTestClass) {
+        Path buildOutputDirectory = determineBuildOutputDirectory(requiredTestClass);
         Path artifactProperties = buildOutputDirectory.resolve("quarkus-artifact.properties");
         if (!Files.exists(artifactProperties)) {
             TestLauncher testLauncher = determineTestLauncher();
             String errorMessage = "Unable to locate the artifact metadata file created that must be created by Quarkus in order to run integration tests. ";
             if (testLauncher == TestLauncher.MAVEN) {
                 errorMessage += "Make sure this test is run after 'mvn package'. ";
-                if (context.getTestClass().isPresent()) {
-                    String testClassName = context.getTestClass().get().getName();
+                if (requiredTestClass != null) {
+                    String testClassName = requiredTestClass.getName();
                     if (testClassName.endsWith("Test")) {
                         errorMessage += "The easiest way to ensure this is by having the 'maven-failsafe-plugin' run the test instead of the 'maven-surefire-plugin'.";
                     }
@@ -455,13 +461,16 @@ public final class IntegrationTestUtil {
     }
 
     static Path determineBuildOutputDirectory(ExtensionContext context) {
+        return determineBuildOutputDirectory(context.getRequiredTestClass());
+    }
+
+    static Path determineBuildOutputDirectory(Class<?> testClass) {
         String buildOutputDirStr = System.getProperty("build.output.directory");
         Path result = null;
         if (buildOutputDirStr != null) {
             result = Paths.get(buildOutputDirStr);
         } else {
             // we need to guess where the artifact properties file is based on the location of the test class
-            Class<?> testClass = context.getRequiredTestClass();
             final CodeSource codeSource = testClass.getProtectionDomain().getCodeSource();
             if (codeSource != null) {
                 URL codeSourceLocation = codeSource.getLocation();
